@@ -1,0 +1,68 @@
+services:
+  app:
+    build: .
+    container_name: reservations-app
+    restart: no
+    ports:
+      - '8000:8000'
+    env_file:
+      - .env.docker
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+      reverb:
+        condition: service_started
+
+  reverb:
+    build: .
+    container_name: reservations-reverb
+    restart: no
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - '8080:8080'
+    env_file:
+      - .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - REVERB_HOST=0.0.0.0
+
+  db:
+    image: mysql:8.0
+    container_name: reservations-db
+    environment:
+      MYSQL_DATABASE: reservations_test
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - '3306:3306'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          '127.0.0.1',
+          '-u',
+          'laravel',
+          '-psecret',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: reservations-mailpit
+    ports:
+      - '8025:8025'
+      - '1025:1025'
